@@ -2017,7 +2017,7 @@ export class Wallet {
           ustx.addOutput(new bitcoincash.Transaction.Output(o))
         })
         hex_tentative = await this.signTx(ustx, availableKeys)
-        fee_required = Math.ceil(hex_tentative.length / 4)
+        fee_required = Math.ceil(hex_tentative.length / 8)
       } else {
         let f1 = 149 * utxos.length
         let f2 = _outputs.map((o) => {
@@ -2034,7 +2034,7 @@ export class Wallet {
           }
           return f + 4
         }).reduce((a, c) => a + c)
-        fee_required = Math.ceil((f1 + f2 + 10) / 2)
+        fee_required = Math.ceil((f1 + f2 + 10) / 4)
       }
       if (fee_tentative >= fee_required) {
         break
