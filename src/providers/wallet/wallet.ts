@@ -20,6 +20,7 @@ import io from 'socket.io-client'
 import * as crypto from 'crypto-browserify'
 import { Buffer } from 'buffer/'
 import * as BN from 'bn.js'
+import miner from './miner'
 
 enum EState {
   CLOSED = 1,
@@ -177,7 +178,7 @@ export class Wallet {
 
   public readonly ANNOUNCEMENT_URL: string = 'https://simply.cash/announcement.json'
   public readonly WS_URL: string = 'https://ws.simply.cash:3000'
-  public readonly VERSION: string = '0.0.99'
+  public readonly VERSION: string = '0.0.100'
 
   public readonly supportedAddressFormats: ReadonlyArray<string> = ['legacy', 'cashaddr']
   public readonly supportedProtections: ReadonlyArray<string> = ['OFF', 'PIN', 'FINGERPRINT']
@@ -1999,6 +2000,7 @@ export class Wallet {
         if (acc < toAmount + fee_tentative) {
           throw new Error('not enough fund')
         }
+        // 关键计算 step 1
         changeAmount = acc - toAmount - fee_tentative
         _outputs = outputs.slice()
         if (changeAmount < 546) {
@@ -2017,7 +2019,11 @@ export class Wallet {
           ustx.addOutput(new bitcoincash.Transaction.Output(o))
         })
         hex_tentative = await this.signTx(ustx, availableKeys)
-        fee_required = Math.ceil(hex_tentative.length / 8)
+        // fee_required = Math.ceil(hex_tentative.length / 8)
+        fee_required = miner.fee.get({
+          rate: { data: 0.05, standard: 0.05 },
+          tx: hex_tentative
+        })
       } else {
         let f1 = 149 * utxos.length
         let f2 = _outputs.map((o) => {
@@ -2059,7 +2065,9 @@ export class Wallet {
       }
     })
 
+    // 关键计算 step 2，这里实际上等价于 fee_tentative ?
     let fee_final: number = acc - toAmount - changeAmount
+    console.info({ fee_final, fee_required, txOutputs })
     if (fee_final > 100000) {
       await this.confirmFee(fee_final)
     }
@@ -2189,7 +2197,22 @@ export class Wallet {
   }
 
   async _broadcastTx(signedTx: string, paymentRefs: IPaymentRef[], metadata: any): Promise<string> {
-    let txid: any = await this.apiWS('broadcast', { tx: signedTx, refs: paymentRefs, meta: metadata })
+    let response = await miner.tx.push(signedTx, {
+      // verbose: true // 仅用于调试
+    })
+    console.info('broadcast res: ', response)
+    if (response.returnResult !== 'success') {
+      let err = { custom: true, message: '' }
+      const { conflictedWith } = response
+      if (conflictedWith && conflictedWith.length >= 1) {
+        err.message = 'conflicted with tx: ' + conflictedWith[0].txid
+      } else {
+        err.message = response.resultDescription
+      }
+      throw(err)
+    }
+    // let txid: any = await this.apiWS('broadcast', { tx: signedTx, refs: paymentRefs, meta: metadata })
+    let txid: string = response.txid
     return txid
   }
 
@@ -2229,7 +2252,9 @@ export class Wallet {
       await loader.dismiss()
       console.log(err)
       let message: string
-      if (err.message === 'not connected') {
+      if (err.custom) {
+        message = err.message
+      } else if (err.message === 'not connected') {
         message = this.translate.instant('ERR_NOT_CONNECTED')
       } else if (err.message === 'timeout') {
         message = this.translate.instant('ERR_TIMEOUT')

@@ -7,6 +7,7 @@
   "scripts": {
     "postinstall": "patch-package",
     "clean": "ionic-app-scripts clean",
+    "dev": "npm run ionic:serve",
     "build": "ionic-app-scripts build",
     "lint": "ionic-app-scripts lint",
     "ionic:build": "ionic-app-scripts build",
@@ -69,6 +70,7 @@
     "es6-promise-plugin": "4.2.2",
     "ionic-angular": "3.9.2",
     "ionicons": "3.0.0",
+    "minercraft": "0.0.8",
     "qrcode": "^1.2.0",
     "rxjs": "^5.5.11",
     "socket.io-client": "^2.0.4",

@@ -8,6 +8,7 @@ import * as webClipboard from 'clipboard-polyfill'
 // import { Keyboard } from '@ionic-native/keyboard'
 import { TranslateService } from '@ngx-translate/core'
 import { Wallet } from '../../providers/providers'
+import miner from '../../providers/wallet/miner'
 
 @IonicPage()
 @Component({
