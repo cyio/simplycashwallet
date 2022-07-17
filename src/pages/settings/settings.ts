@@ -74,7 +74,10 @@ export class SettingsPage {
   }
 
   setUseSingleAddr() {
-    return this.wallet.setPreferredUseSingleAddr(this.useSingleAddr).catch((err: any) => {console.log(err)})
+    this.wallet.setPreferredUseSingleAddr(this.useSingleAddr).catch((err: any) => {console.log(err)})
+    setTimeout(() => {
+      window.location.reload()
+    }, 200)
   }
 
   async setProtection() {

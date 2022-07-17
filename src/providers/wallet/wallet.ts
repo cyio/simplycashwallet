@@ -1914,6 +1914,7 @@ export class Wallet {
   }
 
   getCacheBalance(): number {
+    if (!this.isSynced()) return 0
     let balance: number = 0
     this.currentWallet.cache.utxos.forEach((utxo: IUtxo) => {
       balance += utxo.satoshis
@@ -1950,10 +1951,13 @@ export class Wallet {
         }))
       }
     } else {
+      const tmp = []
+      latestUtxos.forEach(item => {
+        tmp.push(...item.unspent)
+      })
       utxosCache.forEach((item, index) => {
         // 修正 utxo
-        const unspent = latestUtxos[index].unspent
-        const cur = unspent[0]
+        const cur = tmp[index]
         item.satoshis = cur.value
         item.txid = cur.tx_hash
       })
