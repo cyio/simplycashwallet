@@ -17,6 +17,7 @@ export class SettingsPage {
   public cryptoUnit: string
   public supportedCryptoUnits: string[]
   public currency: string
+  public useSingleAddr: boolean
   public supportedCurrencies: string[]
   public protection: string
   public supportedProtections: string[]
@@ -40,6 +41,7 @@ export class SettingsPage {
     this.cryptoUnit = this.wallet.getPreferredCryptoUnit()
     this.supportedCryptoUnits = this.wallet.getSupportedCryptoUnits()
     this.currency = this.wallet.getPreferredCurrency()
+    this.useSingleAddr = this.wallet.getPreferredUseSingleAddr()
     this.supportedCurrencies = this.wallet.getSupportedCurrencies()
     this.protection = this.wallet.getPreferredProtection()
     this.supportedProtections = this.wallet.getSupportedProtections()
@@ -69,6 +71,10 @@ export class SettingsPage {
 
   setCurrency() {
     return this.wallet.setPreferredCurrency(this.currency).catch((err: any) => {console.log(err)})
+  }
+
+  setUseSingleAddr() {
+    return this.wallet.setPreferredUseSingleAddr(this.useSingleAddr).catch((err: any) => {console.log(err)})
   }
 
   async setProtection() {

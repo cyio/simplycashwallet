@@ -53,6 +53,7 @@
   "COPIED_ADDRESS": "Copied address",
   "CRYPTO_UNIT": "Unit",
   "PROTECTION": "Protection",
+  "USE_SINGLE_ADDR": "Single address mode",
   "OFF": "Off",
   "PIN": "Password",
   "FINGERPRINT": "Touch",

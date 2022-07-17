@@ -12,6 +12,7 @@ export class AddressesPage {
 
   public _receiveAddrs: { address: string, path: number[], isGap: boolean }[]
   public _changeAddrs: { address: string, path: number[], isGap: boolean }[]
+  public _changeAddrsUsed: { address: string, path: number[], isGap: boolean }[]
   public _unspentAddrs: { address: string, balance: string, path: number[] }[]
   public receiveAddrs: { address: string, path: number[], isGap: boolean }[]
   public changeAddrs: { address: string, path: number[], isGap: boolean }[]
@@ -33,25 +34,12 @@ export class AddressesPage {
       content: this.translate.instant('LOADING_ADDRESSES')+'...'
     })
     await loader.present()
-    let ara: string[] = this.wallet.getAllReceiveAddresses()
-    this._receiveAddrs = ara.map((addr: string, i: number, arr: string[]) => {
-      return {
-        address: addr,
-        path: [0, i],
-        isGap: i >= ara.length - 20
-      }
-    }).reverse()
+    this._receiveAddrs = this.wallet.getAllReceiveAddressesObj()
     this.receiveAddrs = this._receiveAddrs
-    let aca: string[] = this.wallet.getAllChangeAddresses()
-    this._changeAddrs = aca.map((addr: string, i: number, arr: string[]) => {
-      return {
-        address: addr,
-        path: [1, i],
-        isGap: i >= aca.length - 20
-      }
-    }).reverse()
+    this._changeAddrs = this.wallet.getAllChangeAddressesObj()
     this.changeAddrs = this._changeAddrs
-    this._unspentAddrs = this.wallet.getCacheUtxos().map((utxo: any) => {
+    const utxos = await this.wallet.getCacheUtxos()
+    this._unspentAddrs = utxos.map((utxo: any) => {
       return {
         address: utxo.address,
         balance: this.wallet.convertUnit('SATS', 'BSV', utxo.satoshis.toString()),

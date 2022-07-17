@@ -52,6 +52,7 @@
   "COPIED_ADDRESS": "已复制的地址",
   "CRYPTO_UNIT": "单位",
   "PROTECTION": "保护",
+  "USE_SINGLE_ADDR": "单地址模式",
   "OFF": "关闭",
   "PIN": "密码",
   "FINGERPRINT": "指纹",

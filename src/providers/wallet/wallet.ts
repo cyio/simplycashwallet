@@ -89,6 +89,7 @@ interface IPreference {
   unitIndex: number,
   cryptoUnit: string,
   currency: string,
+  useSingleAddr: boolean,
   addressFormat: string,
   lastAnnouncement: string
 }
@@ -178,7 +179,7 @@ export class Wallet {
 
   public readonly ANNOUNCEMENT_URL: string = 'https://simply.cash/announcement.json'
   public readonly WS_URL: string = 'https://ws.simply.cash:3000'
-  public readonly VERSION: string = '0.0.100'
+  public readonly VERSION: string = '0.0.101'
 
   public readonly supportedAddressFormats: ReadonlyArray<string> = ['legacy', 'cashaddr']
   public readonly supportedProtections: ReadonlyArray<string> = ['OFF', 'PIN', 'FINGERPRINT']
@@ -203,6 +204,7 @@ export class Wallet {
       unitIndex: 0,
       cryptoUnit: 'BSV',
       currency: 'USD',
+      useSingleAddr: true,
       addressFormat: 'legacy',
       lastAnnouncement: ''
     }
@@ -464,10 +466,19 @@ export class Wallet {
     return this.stored.preference.currency
   }
 
+  getPreferredUseSingleAddr(): boolean {
+    return this.stored.preference.useSingleAddr
+  }
+
   async setPreferredCurrency(sym: string): Promise<void> {
     this.stored.preference.currency = sym
     this.events.publish('wallet:preferredcurrency', sym)
     this.events.publish('wallet:preferredunit', this.getPreferredUnit())
+    await this.updateStorage()
+  }
+
+  async setPreferredUseSingleAddr(sym: boolean): Promise<void> {
+    this.stored.preference.useSingleAddr = sym
     await this.updateStorage()
   }
 
@@ -1236,6 +1247,7 @@ export class Wallet {
       utxos: newUtxos,
       history: currentHistory
     }
+    await this.getCacheUtxos()
     await this.updateStorage()
     if (!this.isSyncing() || currentWallet !== this.currentWallet || syncTaskId !== this.syncTaskId - 1) {
       return
@@ -1857,15 +1869,47 @@ export class Wallet {
     return this.currentWallet.addresses.receive.slice()
   }
 
+  getAllReceiveAddressesObj(): any[] {
+    const ara = this.getAllReceiveAddresses()
+    const _addrs = ara.map((addr: string, i: number, arr: string[]) => {
+      return {
+        address: addr,
+        path: [0, i],
+        isGap: i >= ara.length - 20
+      }
+    }).reverse()
+
+    return _addrs
+  }
+
   getAllChangeAddresses(): string[] {
     return this.currentWallet.addresses.change.slice()
   }
 
+  getAllChangeAddressesObj(): any[] {
+    let aca: string[] = this.getAllChangeAddresses()
+    const _addrs = aca.map((addr: string, i: number, arr: string[]) => {
+      return {
+        address: addr,
+        path: [1, i],
+        isGap: i >= aca.length - 20
+      }
+    }).reverse()
+    return _addrs
+  }
+
   getCacheReceiveAddress(): string {
+    console.log('3', this.currentWallet)
+    if (this.getPreferredUseSingleAddr()) {
+      return this.currentWallet.addresses.receive[0]
+    }
     return this.currentWallet.cache.receiveAddress
   }
 
   getCacheChangeAddress(): string {
+    if (this.getPreferredUseSingleAddr()) {
+      return this.currentWallet.addresses.receive[0]
+    }
     return this.currentWallet.cache.changeAddress
   }
 
@@ -1881,8 +1925,43 @@ export class Wallet {
     return this.currentWallet.cache.history.slice()
   }
 
-  getCacheUtxos(): IUtxo[] {
-    return this.currentWallet.cache.utxos.slice()
+  async getCacheUtxos(): Promise<IUtxo[]> {
+    let utxosCache = this.currentWallet.cache.utxos
+    const utxoAddrs = utxosCache.map(i => i.address)
+    const addresses = [...utxoAddrs]
+    const latestUtxos = await fetch("https://api.whatsonchain.com/v1/bsv/main/addresses/unspent", {
+      body: JSON.stringify({"addresses" : addresses}),
+      headers: {
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    }).then(res => res.json())
+    if (this.getPreferredUseSingleAddr()) {
+      if (latestUtxos.length && utxosCache.length) {
+        const unspent = latestUtxos[0].unspent
+        const tpl = utxosCache[0]
+        utxosCache = unspent.map(i => ({
+          address: tpl.address,
+          path: tpl.path,
+          satoshis: i.value,
+          scriptPubKey: tpl.scriptPubKey,
+          txid: i.tx_hash,
+          vout: i.tx_pos
+        }))
+      }
+    } else {
+      utxosCache.forEach((item, index) => {
+        // 修正 utxo
+        const unspent = latestUtxos[index].unspent
+        const cur = unspent[0]
+        item.satoshis = cur.value
+        item.txid = cur.tx_hash
+      })
+    }
+    this.currentWallet.cache.utxos = utxosCache
+    this.updateStorage()
+    console.info('latest utxos: ', utxosCache, latestUtxos)
+    return utxosCache
   }
 
   getIdentityPrivateKey(m: string): bitcoincash.PrivateKey {
@@ -1923,13 +2002,13 @@ export class Wallet {
   }
 
   async makeSignedTx(outputs: IOutput[], drain: boolean, m: string): Promise<ITransaction> {
-    let au: IUtxo[] = this.getCacheUtxos()
+    let au: IUtxo[] = await this.getCacheUtxos()
     let ak: bitcoincash.PrivateKey[] = this.getPrivateKeys(au.map(u => u.path), m)
     return await this._makeTx(outputs, drain, au, ak)
   }
 
   async makeUnsignedTx(outputs: IOutput[], drain: boolean): Promise<ITransaction> {
-    let au: IUtxo[] = this.getCacheUtxos()
+    let au: IUtxo[] = await this.getCacheUtxos()
     return await this._makeTx(outputs, drain, au, [])
   }
 
@@ -1962,7 +2041,7 @@ export class Wallet {
     let utxos: IUtxo[]
     let toAmount: number
     let changeAmount: number
-    let changeOutputScript: string = this.scriptFromAddress(this.currentWallet.cache.changeAddress)
+    let changeOutputScript: string = this.scriptFromAddress(this.getCacheChangeAddress())
     let changeOutputIndex: number = Math.floor(Math.random() * (outputs.length + 1))
     let _outputs: IOutput[]
     let hex_tentative: string
@@ -2052,7 +2131,7 @@ export class Wallet {
     let txOutputs: IOutput[] = _outputs
     let changeOutput: IOutput = txOutputs.find(o => o.script === changeOutputScript)
     if (changeOutput) {
-      changeOutput.path = this.getAddressTypeAndIndex(this.currentWallet.cache.changeAddress, 1)
+      changeOutput.path = this.getAddressTypeAndIndex(this.getCacheChangeAddress(), 1)
     }
 
     let txInputs: IInput[] = utxos.map(u => {
@@ -2067,7 +2146,7 @@ export class Wallet {
 
     // 关键计算 step 2，这里实际上等价于 fee_tentative ?
     let fee_final: number = acc - toAmount - changeAmount
-    console.info({ fee_final, fee_required, txOutputs })
+    console.info({ fee_final, fee_required, txInputs, txOutputs, hex_tentative })
     if (fee_final > 100000) {
       await this.confirmFee(fee_final)
     }
@@ -2243,6 +2322,7 @@ export class Wallet {
       }))
       metadata = metadata || {}
       await this._broadcastTx(hex, _paymentRefs, metadata)
+      // this.getCacheUtxos() // 远端数据没有立即更新，需要本地维护？
       if (deleteRefs) {
         await this.deletePaymentRefs(paymentRefs) // from findPaymentRefs
       }
