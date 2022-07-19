@@ -179,7 +179,7 @@ export class Wallet {
 
   public readonly ANNOUNCEMENT_URL: string = 'https://simply.cash/announcement.json'
   public readonly WS_URL: string = 'https://ws.simply.cash:3000'
-  public readonly VERSION: string = '0.0.101'
+  public readonly VERSION: string = '0.0.102'
 
   public readonly supportedAddressFormats: ReadonlyArray<string> = ['legacy', 'cashaddr']
   public readonly supportedProtections: ReadonlyArray<string> = ['OFF', 'PIN', 'FINGERPRINT']
@@ -673,11 +673,13 @@ export class Wallet {
     let encrypted: string
     let xpub: string
     let addresses: IAddresses
+    // xpub 观察钱包，仅生成地址
     if (mnemonicOrXprvOrXpub && mnemonicOrXprvOrXpub.match(/^xpub/g)) {
       encrypted = undefined
       xpub = mnemonicOrXprvOrXpub
       addresses = this.generateAddressesFromPublicKey(new bitcoincash.HDPublicKey(xpub))
     } else {
+      // 1. 解出公私钥 2. 加密存储恢复语 3. 生成地址
       let m: string = this.makeRecoveryString(mnemonicOrXprvOrXpub, path, passphrase)
       let hdPrivateKey: bitcoincash.HDPrivateKey = this.getHDPrivateKeyFromRecoveryString(m, compliant)
       let hdPublicKey: bitcoincash.HDPublicKey = hdPrivateKey.hdPublicKey
@@ -685,7 +687,7 @@ export class Wallet {
       xpub = hdPublicKey.toString()
       addresses = this.generateAddressesFromPrivateKey(hdPrivateKey)
     }
-
+    // 钱包数据结构，本地存储
     let wallet: IWallet = {
       handle: '',
       name: name || this.nextWalletName(),
@@ -1100,11 +1102,52 @@ export class Wallet {
       console.log(err)
     }
     this.pendingAddresses.length = 0
+    // utxos 独立请求和处理
+    if (this.getPreferredUseSingleAddr()) {
+      this.getCacheUtxos()  // 单地址不走 ws
+    } else {
+      this.apiWS('utxos', { addresses: targetAddresses }).then(resUtxos => {
+        // new utxos
+        let newUtxos: IUtxo[]
+        if (fullSync) {
+          newUtxos = resUtxos.map((obj: IUtxo) => {
+            return {
+              txid: obj.txid,
+              vout: obj.vout,
+              address: obj.address,
+              //path relies on up-to-date this.currentWallet.addresses
+              path: this.getAddressTypeAndIndex(obj.address),
+              scriptPubKey: obj.scriptPubKey,
+              satoshis: obj.satoshis
+            }
+          }).filter(utxo => typeof utxo.path !== 'undefined')
+        } else {
+          let futxos: IUtxo[] = resUtxos.filter((nutxo) => {
+            return this.currentWallet.cache.utxos.findIndex(outxo => outxo.txid === nutxo.txid && outxo.vout === nutxo.vout) === -1
+          }).map((utxo) => {
+            return {
+              txid: utxo.txid,
+              vout: utxo.vout,
+              address: utxo.address,
+              path: this.getAddressTypeAndIndex(utxo.address),
+              scriptPubKey: utxo.scriptPubKey,
+              satoshis: utxo.satoshis
+            }
+          }).filter(utxo => typeof utxo.path !== 'undefined')
+          let rutxos: IUtxo[] = this.currentWallet.cache.utxos.filter(outxo => targetAddresses.indexOf(outxo.address) === -1 || resUtxos.findIndex(nutxo => outxo.txid === nutxo.txid && outxo.vout === nutxo.vout) !== -1)
+          newUtxos = rutxos.concat(futxos)
+          this.currentWallet.cache.utxos = newUtxos
+          this.getCacheUtxos()
+        }
+      })
+    }
+
+    // 订阅地址数据，进行同步
     let results: any[] = await Promise.all([
       this.apiWS('finaladdresspair').then(result => this.syncAddresses(currentWallet, result)),
       this.apiWS('unusedreceiveaddress'),
       this.apiWS('unusedchangeaddress'),
-      this.apiWS('utxos', { addresses: targetAddresses }),
+      // this.apiWS('utxos', { addresses: targetAddresses }),
       this.apiWS('history', { addresses: targetAddresses, minHeight: minHeight })
     ])
 
@@ -1118,8 +1161,8 @@ export class Wallet {
 
     // identify new txs
     let allTxids: string[] = this.getAllTxids()
-    let newTxs: ITxRecord[] = results[4].filter(tx => allTxids.indexOf(tx.txid) === -1)
-    let oldTxs: ITxRecord[] = results[4].filter(tx => allTxids.indexOf(tx.txid) !== -1)
+    let newTxs: ITxRecord[] = results[3].filter(tx => allTxids.indexOf(tx.txid) === -1)
+    let oldTxs: ITxRecord[] = results[3].filter(tx => allTxids.indexOf(tx.txid) !== -1)
     let newTxids: string[] = newTxs.map(tx => tx.txid)
 
     // publish only after updated this.currentWallet.cache
@@ -1129,7 +1172,7 @@ export class Wallet {
       })
     }, 0)
 
-    let skipNotification: boolean = (allTxids.length === 0 && results[4].length > 1) || this.app.getRootNav().getActive().component.pageName === 'HistoryPage'
+    let skipNotification: boolean = (allTxids.length === 0 && results[3].length > 1) || this.app.getRootNav().getActive().component.pageName === 'HistoryPage'
     if (!skipNotification) {
       let _newTxs: ITxRecord[] = newTxs
       let lastConfirmed: ITxRecord = currentWallet.cache.history.find(tx => typeof tx.timestamp !== 'undefined')
@@ -1209,45 +1252,10 @@ export class Wallet {
       delete (h as any).tempIndex
     })
 
-    // new utxos
-    let newUtxos: IUtxo[]
-    if (fullSync) {
-      newUtxos = results[3].map((obj: IUtxo) => {
-        return {
-          txid: obj.txid,
-          vout: obj.vout,
-          address: obj.address,
-          //path relies on up-to-date this.currentWallet.addresses
-          path: this.getAddressTypeAndIndex(obj.address),
-          scriptPubKey: obj.scriptPubKey,
-          satoshis: obj.satoshis
-        }
-      }).filter(utxo => typeof utxo.path !== 'undefined')
-    } else {
-      let futxos: IUtxo[] = results[3].filter((nutxo) => {
-        return this.currentWallet.cache.utxos.findIndex(outxo => outxo.txid === nutxo.txid && outxo.vout === nutxo.vout) === -1
-      }).map((utxo) => {
-        return {
-          txid: utxo.txid,
-          vout: utxo.vout,
-          address: utxo.address,
-          path: this.getAddressTypeAndIndex(utxo.address),
-          scriptPubKey: utxo.scriptPubKey,
-          satoshis: utxo.satoshis
-        }
-      }).filter(utxo => typeof utxo.path !== 'undefined')
-      let rutxos: IUtxo[] = this.currentWallet.cache.utxos.filter(outxo => targetAddresses.indexOf(outxo.address) === -1 || results[3].findIndex(nutxo => outxo.txid === nutxo.txid && outxo.vout === nutxo.vout) !== -1)
-      newUtxos = rutxos.concat(futxos)
-    }
-
     //update cache
-    this.currentWallet.cache = {
-      receiveAddress: results[1],
-      changeAddress: results[2],
-      utxos: newUtxos,
-      history: currentHistory
-    }
-    await this.getCacheUtxos()
+    this.currentWallet.cache.receiveAddress = results[1]
+    this.currentWallet.cache.changeAddress = results[2]
+    this.currentWallet.cache.history = currentHistory
     await this.updateStorage()
     if (!this.isSyncing() || currentWallet !== this.currentWallet || syncTaskId !== this.syncTaskId - 1) {
       return
@@ -1384,7 +1392,7 @@ export class Wallet {
   createMnemonic(): string {
     return new bitcoincash_Mnemonic(crypto.randomBytes(16)).phrase
   }
-
+  // 0 用于接收，1 用于找零。一共两层，path[0, 1] 对应 hdPrivateKey.deriveChild(0).deriveChild(1)
   generateAddressesFromPrivateKey(hdPrivateKey: bitcoincash.HDPrivateKey): IAddresses {
     let d: bitcoincash.HDPrivateKey[] = [hdPrivateKey.deriveChild(0), hdPrivateKey.deriveChild(1)]
     let addresses: IAddresses = { receive: [], change: [] }
@@ -1914,7 +1922,6 @@ export class Wallet {
   }
 
   getCacheBalance(): number {
-    if (!this.isSynced()) return 0
     let balance: number = 0
     this.currentWallet.cache.utxos.forEach((utxo: IUtxo) => {
       balance += utxo.satoshis
@@ -1929,7 +1936,11 @@ export class Wallet {
   async getCacheUtxos(): Promise<IUtxo[]> {
     let utxosCache = this.currentWallet.cache.utxos
     const utxoAddrs = utxosCache.map(i => i.address)
-    const addresses = [...utxoAddrs]
+    let addresses = [...utxoAddrs]
+    let receiveAddress = this.getCacheReceiveAddress()
+    if (this.getPreferredUseSingleAddr() && addresses.length === 0) {
+      addresses = [receiveAddress]
+    }
     const latestUtxos = await fetch("https://api.whatsonchain.com/v1/bsv/main/addresses/unspent", {
       body: JSON.stringify({"addresses" : addresses}),
       headers: {
@@ -1938,9 +1949,25 @@ export class Wallet {
       method: "POST"
     }).then(res => res.json())
     if (this.getPreferredUseSingleAddr()) {
-      if (latestUtxos.length && utxosCache.length) {
+      if (latestUtxos.length) {
         const unspent = latestUtxos[0].unspent
-        const tpl = utxosCache[0]
+        let tpl = {
+          address: '',
+          path: [],
+          scriptPubKey: ''
+        }
+        if (utxosCache.length) {
+          tpl.address = utxosCache[0].address
+          tpl.path = utxosCache[0].path
+          tpl.scriptPubKey = utxosCache[0].scriptPubKey
+        } else {
+          const addressInfo = await fetch(`https://api.whatsonchain.com/v1/bsv/main/address/${receiveAddress}/info`).then(res => res.json())
+          tpl =  {
+            address: receiveAddress,
+            path: [0, 0],
+            scriptPubKey: addressInfo.scriptPubKey
+          }
+        }
         utxosCache = unspent.map(i => ({
           address: tpl.address,
           path: tpl.path,
@@ -1966,6 +1993,12 @@ export class Wallet {
     this.updateStorage()
     console.info('latest utxos: ', utxosCache, latestUtxos)
     return utxosCache
+  }
+
+  async updateCacheUtxos(): Promise<any> {
+    this.changeState(EState.SYNCING)
+    await this.getCacheUtxos()
+    this.changeState(EState.SYNCED)
   }
 
   getIdentityPrivateKey(m: string): bitcoincash.PrivateKey {
@@ -2326,11 +2359,13 @@ export class Wallet {
       }))
       metadata = metadata || {}
       await this._broadcastTx(hex, _paymentRefs, metadata)
-      // this.getCacheUtxos() // 远端数据没有立即更新，需要本地维护？
       if (deleteRefs) {
         await this.deletePaymentRefs(paymentRefs) // from findPaymentRefs
       }
       await loader.dismiss()
+      setTimeout(() => {
+        this.updateCacheUtxos()
+      }, 2000)
       return true
     } catch (err) {
       await loader.dismiss()
