@@ -21,6 +21,6 @@ jobs:
       run: |
         # ionic start testapp blank --cordova --type angular --no-link --no-git --no-interactive --confirm
         # cd testapp
-        ionic cordova platform add android@latest
+        ionic cordova prepare
         ionic cordova build android --stacktrace
 
