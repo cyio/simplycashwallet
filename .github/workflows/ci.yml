@@ -1,0 +1,33 @@
+name: "CI"
+on: # rebuild any PRs and main branch changes
+  pull_request:
+  push:
+    branches:
+      - master
+      - workflow
+
+jobs:
+  build: # make sure build/ci work properly
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: |
+        npm ci
+        npm run all
+  test: # make sure the action works on a clean machine without building
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-java@v2
+      with:
+        distribution: 'adopt' # See 'Supported distributions' for available options
+        java-version: 8
+    - name: Use coturiv/setup-ionic
+      uses: coturiv/setup-ionic@v1
+    - name: Run cordova project
+      run: |
+        # ionic start testapp blank --cordova --type angular --no-link --no-git --no-interactive --confirm
+        # cd testapp
+        ionic cordova platform add android@latest
+        ionic cordova build android --stacktrace
+
