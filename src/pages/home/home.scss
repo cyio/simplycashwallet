@@ -74,23 +74,23 @@ page-home {
   }
 
   .camera-field {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 2rem;
-    // min-height: 100px;
-    color: white;
   }
 
   .send-field {
-    flex: 1;
+  }
+
+  .send-area {
     display: flex;
-    justify-content: center;
     align-items: center;
-    font-size: 2rem;
-    // min-height: 100px;
-    color: white;
+    padding: 0 5rem;
+    justify-content: space-around;
+    margin-top: 8rem;
+    button {
+      width: 12rem;
+      height: 4rem;
+      background: #3f3d3d;
+      color: white;;
+    }
   }
 
   .send-btn {

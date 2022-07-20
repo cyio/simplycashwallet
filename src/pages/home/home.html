@@ -10,6 +10,9 @@
         <ion-option *ngFor="let w of wallet.getAllWalletNames().sort()" [value]="w">{{ w }}</ion-option>
       </ion-select>
     </ion-item>
+    <div *ngIf="wallet.isWatchOnly()">
+      <ion-badge color="light">WatchOnly</ion-badge>
+    </div>
     <ion-buttons start>
       <button ion-button *ngIf="wallet.isConnecting() || wallet.isSyncing()">
         <ion-spinner color="light"></ion-spinner>
@@ -54,8 +57,13 @@
       <div (tap)="onHandleClick()" (press)="onHandlePress()">{{ wallet.getHandle() || '~' }}@simply.cash</div>
     </div>
 
-    <div *ngIf="!clipboardContent && platform.is('cordova')" class="camera-field" (touchstart)="startScan()" (touchcancel)="stopScan()" (touchend)="stopScan()">
-      <ion-icon name="md-camera"></ion-icon>
+    <div class="send-area">
+      <button ion-button icon-only class="send-field" (click)="navCtrl.push('SendPage')">
+        <ion-icon name="paper-plane"></ion-icon>
+      </button>
+      <button *ngIf="!clipboardContent && platform.is('cordova')" icon-only class="camera-field" (touchstart)="startScan()" (touchcancel)="stopScan()" (touchend)="stopScan()">
+        <ion-icon name="md-camera"></ion-icon>
+      </button>
     </div>
 
     <div *ngIf="clipboardContent && platform.is('cordova')" class="quick-send-chip-container">
@@ -68,9 +76,6 @@
       </ion-chip>
     </div>
 
-    <div *ngIf="!platform.is('cordova')" class="send-field" (click)="navCtrl.push('SendPage')">
-      <ion-icon name="paper-plane"></ion-icon>
-    </div>
   </div>
 
   <div class="custom-footer">
