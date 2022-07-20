@@ -9,9 +9,7 @@
     "clean": "ionic-app-scripts clean",
     "dev": "npm run ionic:serve",
     "build": "ionic-app-scripts build",
-    "lint": "ionic-app-scripts lint",
-    "ionic:build": "ionic-app-scripts build",
-    "ionic:serve": "ionic-app-scripts serve"
+    "lint": "ionic-app-scripts lint"
   },
   "dependencies": {
     "@angular/common": "5.0.3",
@@ -80,7 +78,6 @@
   "devDependencies": {
     "@babel/core": "7.4.4",
     "@babel/preset-env": "7.4.4",
-    "@ionic/app-scripts": "3.2.3",
     "babel-loader": "8.0.6",
     "cordova-clipboard": "git+https://github.com/simplycash/cordova-clipboard.git#8a5d31e6f048ef4e15d0b4f3bbd47cf9e3607050",
     "patch-package": "^6.1.2",
