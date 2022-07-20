@@ -84,6 +84,7 @@
     "babel-loader": "8.0.6",
     "cordova-clipboard": "git+https://github.com/simplycash/cordova-clipboard.git#8a5d31e6f048ef4e15d0b4f3bbd47cf9e3607050",
     "patch-package": "^6.1.2",
+    "sass": "^1.53.0",
     "typescript": "2.4.2"
   },
   "description": "An Ionic project",
