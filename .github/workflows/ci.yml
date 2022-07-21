@@ -35,15 +35,39 @@ jobs:
         # run: ionic cordova prepare android
 
       - name: Build Android Dev APK
-        run: ionic cordova build android --prod --stacktrace
+        run: ionic cordova build android --prod
 
-      - name: Upload files to a GitHub release
-        uses: svenstaro/upload-release-action@2.3.0
+     - name: Upload APK
+       uses: actions/upload-artifact@v1
+       with:
+         name: apk
+         path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
+
+  release:
+    name: Release APK
+    needs: apk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK from build
+        uses: actions/download-artifact@v1
         with:
-          # repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./platforms/android/app/build/outputs/apk/debug/app-debug.apk
-          asset_name: simplycashx-debug.apk
-          tag: ${{ github.ref }}
-          overwrite: true
+          name: apk
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
           prerelease: true
-          body: "pre-release"
+          tag_name: ${{ github.run_number }}
+          release_name: ${{ github.event.repository.name }}x v${{ github.run_number }}
+      - name: Upload Release APK
+        id: upload_release_asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: apk/app-debug.apk
+          asset_name: ${{ github.event.repository.name }}x.apk
+          asset_content_type: application/zip
