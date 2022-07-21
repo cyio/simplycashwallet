@@ -45,7 +45,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v1
         with:
-          name: build
+          name: apk
           path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
 
   release:
@@ -56,7 +56,7 @@ jobs:
       - name: Download APK from build
         uses: actions/download-artifact@v1
         with:
-          name: build
+          name: apk
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
