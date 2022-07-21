@@ -3,7 +3,6 @@ on: # rebuild any PRs and main branch changes
   pull_request:
   push:
     branches:
-      - master
       - workflow
 
 jobs:
@@ -19,8 +18,7 @@ jobs:
       uses: coturiv/setup-ionic@v1
     - name: Run cordova project
       run: |
-        # ionic start testapp blank --cordova --type angular --no-link --no-git --no-interactive --confirm
-        # cd testapp
+        cordova platform rm android && cordova platform add android
         ionic cordova prepare
         ionic cordova build android --stacktrace
 
