@@ -22,16 +22,16 @@ jobs:
           node-version: 13.x
 
       - name: Install Cordova
-        run: npm install -g cordova
+        run: npm install -g cordova@10.0.0
 
       - name: Install Ionic
-        run: npm install -g @ionic/cli
+        run: npm install -g @ionic/cli@6.17.1
 
       - name: Install app dependencies
         run: npm install
 
       - name: Add Android platform
-        run: ionic cordova platform add android@latest
+        run: ionic cordova prepare android
 
       - name: Build Android Dev APK
-        run: ionic cordova build android
+        run: ionic cordova build android --prod --stacktrace
