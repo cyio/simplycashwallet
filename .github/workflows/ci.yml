@@ -32,7 +32,7 @@ jobs:
 
       - name: Add Android platform
         run: ionic cordova platform add android
-        run: ionic cordova prepare android
+        # run: ionic cordova prepare android
 
       - name: Build Android Dev APK
         run: ionic cordova build android --prod --stacktrace
