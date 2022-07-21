@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v1
         with:
-          node-version: 13.x
+          node-version: 14.x
 
       - name: Install Cordova
         run: npm install -g cordova@10.0.0
@@ -31,6 +31,7 @@ jobs:
         run: npm install
 
       - name: Add Android platform
+        run: ionic cordova platform add android@latest
         run: ionic cordova prepare android
 
       - name: Build Android Dev APK
