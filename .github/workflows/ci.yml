@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   build:
     name: Build APK
-    runs-on: macos-10.15
+    runs-on: macos-latest
     steps:
       - name: Checkout source
         uses: actions/checkout@v3
