@@ -19,6 +19,6 @@ jobs:
     - name: Run cordova project
       run: |
         cordova platform rm android && cordova platform add android
-        ionic cordova prepare
-        ionic cordova build android --stacktrace
+        # ionic cordova prepare android
+        ionic cordova build android
 
