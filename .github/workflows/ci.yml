@@ -18,7 +18,7 @@ jobs:
       uses: coturiv/setup-ionic@v1
     - name: Run cordova project
       run: |
-        cordova platform rm android && cordova platform add android
+        cordova platform rm android && cordova platform add android --verbose
         # ionic cordova prepare android
         ionic cordova build android
 
