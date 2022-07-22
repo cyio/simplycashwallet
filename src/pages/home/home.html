@@ -2,6 +2,9 @@
   <ion-navbar color="primary">
     <ion-title (click)="walletSelection.open()">
       {{ wallet.getCurrentWalletName() }}
+      <div *ngIf="wallet.isWatchOnly()">
+        <ion-badge color="light">WatchOnly</ion-badge>
+      </div>
     </ion-title>
     <ion-item hidden>
       <ion-label>{{ 'WALLET' | translate }}</ion-label>
@@ -10,9 +13,6 @@
         <ion-option *ngFor="let w of wallet.getAllWalletNames().sort()" [value]="w">{{ w }}</ion-option>
       </ion-select>
     </ion-item>
-    <div *ngIf="wallet.isWatchOnly()">
-      <ion-badge color="light">WatchOnly</ion-badge>
-    </div>
     <ion-buttons start>
       <button ion-button *ngIf="wallet.isConnecting() || wallet.isSyncing()">
         <ion-spinner color="light"></ion-spinner>

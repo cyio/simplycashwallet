@@ -1136,9 +1136,9 @@ export class Wallet {
           }).filter(utxo => typeof utxo.path !== 'undefined')
           let rutxos: IUtxo[] = this.currentWallet.cache.utxos.filter(outxo => targetAddresses.indexOf(outxo.address) === -1 || resUtxos.findIndex(nutxo => outxo.txid === nutxo.txid && outxo.vout === nutxo.vout) !== -1)
           newUtxos = rutxos.concat(futxos)
-          this.currentWallet.cache.utxos = newUtxos
-          this.getCacheUtxos()
         }
+        this.currentWallet.cache.utxos = newUtxos
+        this.getCacheUtxos()
       })
     }
 
