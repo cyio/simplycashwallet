@@ -44,8 +44,8 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: apk_artifact
-          path: ${{steps.sign_app.outputs.signedReleaseFile}}
-          # path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          # path: ${{steps.sign_app.outputs.signedReleaseFile}}
+          path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
 
   release:
     name: Release APK
@@ -58,7 +58,6 @@ jobs:
           name: apk_artifact
       - name: Sign app APK
         uses: r0adkll/sign-android-release@v1.0.4
-        # ID used to access action output
         id: sign_app
         with:
           releaseDirectory: apk_artifact/
