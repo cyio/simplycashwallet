@@ -49,7 +49,7 @@ jobs:
 
   release:
     name: Release APK
-    needs: sign
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Download APK from build
