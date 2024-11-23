@@ -8,7 +8,7 @@
     "postinstall": "patch-package",
     "clean": "ionic-app-scripts clean",
     "dev": "npm run ionic:serve",
-    "build": "ionic-app-scripts build",
+    "build": "ionic-app-scripts build --prod",
     "lint": "ionic-app-scripts lint",
     "ionic:build": "ionic-app-scripts build",
     "ionic:serve": "ionic-app-scripts serve"
@@ -88,6 +88,9 @@
     "typescript": "2.4.2"
   },
   "description": "An Ionic project",
+  "config": {
+    "ionic_build_to_es5": "false"
+  },
   "cordova": {
     "plugins": {
       "cordova-plugin-whitelist": {},

@@ -1985,8 +1985,12 @@ export class Wallet {
       utxosCache.forEach((item, index) => {
         // 修正 utxo
         const cur = tmp[index]
-        item.satoshis = cur.value
-        item.txid = cur.tx_hash
+        if (cur) {
+          item.satoshis = cur.value
+          item.txid = cur.tx_hash
+        } else {
+          console.warn('未修正 utxo', tmp, index, item)
+        }
       })
     }
     this.currentWallet.cache.utxos = utxosCache
