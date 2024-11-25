@@ -2094,7 +2094,7 @@ export class Wallet {
         acc = availableAmount
         utxos = availableUtxos
         toAmount = acc - fee_tentative
-        if (toAmount < 546) {
+        if (toAmount < 146) {
           throw new Error('not enough fund')
         }
         changeAmount = 0
@@ -2317,23 +2317,57 @@ export class Wallet {
   }
 
   async _broadcastTx(signedTx: string, paymentRefs: IPaymentRef[], metadata: any): Promise<string> {
-    let response = await miner.tx.push(signedTx, {
-      // verbose: true // 仅用于调试
-    })
-    console.info('broadcast res: ', response)
-    if (response.returnResult !== 'success') {
-      let err = { custom: true, message: '' }
-      const { conflictedWith } = response
-      if (conflictedWith && conflictedWith.length >= 1) {
-        err.message = 'conflicted with tx: ' + conflictedWith[0].txid
-      } else {
-        err.message = response.resultDescription
+    try {
+      // WhatsOnChain broadcast endpoint
+      const url = 'https://api.whatsonchain.com/v1/bsv/main/tx/raw'
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // If you have an API key, add it here:
+          // 'woc-api-key': 'your-api-key'
+        },
+        body: JSON.stringify({
+          txhex: signedTx
+        })
+      })
+  
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        let err = { 
+          custom: true, 
+          message: errorData.message || `HTTP error! status: ${response.status}`
+        }
+        throw err
       }
-      throw(err)
+  
+      // WhatsOnChain returns the txid directly if successful
+      const txid = await response.json()
+      console.info('broadcast res: ', { txid })
+  
+      // Validate txid format (should be 64 character hex string)
+      if (!/^[a-fA-F0-9]{64}$/.test(txid)) {
+        throw { 
+          custom: true, 
+          message: 'Invalid txid format returned from broadcast'
+        }
+      }
+  
+      return txid
+  
+    } catch (error) {
+      // Handle specific WhatsOnChain error cases
+      if ((error as any).custom) {
+        throw error
+      }
+      
+      // Handle network or other unexpected errors
+      throw {
+        custom: true,
+        message: `Broadcast failed: ${error.message || 'Unknown error'}`
+      }
     }
-    // let txid: any = await this.apiWS('broadcast', { tx: signedTx, refs: paymentRefs, meta: metadata })
-    let txid: string = response.txid
-    return txid
   }
 
   async broadcastTx(hex: string, loader?: any, paymentRefs?: IPaymentRef[], metadata?: any): Promise<boolean> {
